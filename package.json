@@ -1,0 +1,14 @@
+{
+  "name": "OptimalTinder",
+  "main": "index.html",
+  "window": {
+    "toolbar": true,
+    "resizable": true,
+    "fullscreen": false,
+    "width": 500,
+    "height": 700
+  },
+  "dependencies": {
+    "tinderjs": "^1.0.8"
+  }
+}
