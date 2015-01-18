@@ -5,10 +5,15 @@
     "toolbar": true,
     "resizable": true,
     "fullscreen": false,
-    "width": 500,
-    "height": 700
+    "width": 700,
+    "height": 800
   },
   "dependencies": {
+    "lodash": "^2.4.1",
+    "react": "^0.12.2",
     "tinderjs": "^1.0.8"
+  },
+  "scripts": {
+    "build": "jsx js/ build/"
   }
 }

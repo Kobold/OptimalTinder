@@ -15,3 +15,9 @@ Facebook auth secrets are stored in `secrets.json`:
 
 `token` is the access_token passed back to tinder in the facebook oauth call result.
 You'll likely have to snoop it from your iPhone's traffic.
+
+## To Run
+
+```
+$ npm run build && nwjs .
+```
