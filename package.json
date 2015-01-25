@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "lodash": "^2.4.1",
+    "nedb": "^1.1.1",
     "react": "^0.12.2",
     "tinderjs": "^1.0.8"
   },

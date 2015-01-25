@@ -3,10 +3,19 @@ global.document = window.document;
 global.navigator = window.navigator;
 
 var fs = require('fs');
+var path = require('path');
 
+var _ = require('lodash');
+var Datastore = require('nedb')
 var React = require('react');
 var tinder = require('tinderjs');
-var _ = require('lodash');
+
+
+var db = new Datastore({
+  filename: path.join(require('nw.gui').App.dataPath, 'something.db'),
+  autoload: true
+});
+var secrets = require('./secrets.json');
 
 
 /*
@@ -18,13 +27,17 @@ var Match = React.createClass({
   },
 
   render: function() {
+    var messages = this.props.match.messages;
     var person = this.props.match.person;
 
     return (
       <div>
-        <p>{person.name}</p>
+        <p>{person.name} - {person.ping_time}</p>
         {person.photos.map(function(photo) {
-          return <img src={photo.processedFiles[3].url} key={photo.id} />
+          return <img src={photo.processedFiles[3].url} key={photo.id} />;
+        })}
+        {messages.map(function(message) {
+          return <p key={message._id}>{message.sent_date} {message.message}</p>;
         })}
       </div>
     );
@@ -38,9 +51,6 @@ var MatchList = React.createClass({
 
   render: function() {
     var matchNodes = this.props.matches
-      .filter(function(match) {
-        return match.person !== undefined;
-      })
       .map(function(match) {
         return <Match match={match} key={match._id} />
       });
@@ -51,7 +61,12 @@ var MatchList = React.createClass({
 
 var makeOnload = function(data) {
   return function() {
-    var displayMatches = _.take(data.matches, 20);
+    var displayMatches = _(data.matches)
+      .filter(function(match) { return _.has(match, 'person'); })
+      .sortBy(function(match) { return match.person.ping_time; })
+      .reverse()
+      .take(40)
+      .value();
     React.render(
       <MatchList matches={displayMatches} />,
       document.getElementById('application')
@@ -62,29 +77,20 @@ var makeOnload = function(data) {
 
 
 // Get recommendations.
-var secrets = JSON.parse(fs.readFileSync('./secrets.json', 'utf8'));
+var client = new tinder.TinderClient();
+client.authorize(
+  secrets.token,
+  secrets.facebook_id,
+  function() {
+    console.log('Authorized');
+    client.getHistory(function(error, data) {
+      if (error) throw error;
+      console.log('History received.');
+      console.log(data);
 
-// If there's cached data for development, use that.
-if (_.has(secrets, 'localHistory')) {
-  console.log('Local data');
-  var data = JSON.parse(fs.readFileSync(secrets.localHistory, 'utf8'));
-  window.onload = makeOnload(data);
-} else {
-  console.log('Live data');
-  var client = new tinder.TinderClient();
-  client.authorize(
-    secrets.token,
-    secrets.facebook_id,
-    function() {
-      console.log('Authorized');
-      client.getHistory(function(error, data) {
-        if (error) throw error;
-        console.log('History received.');
-
-        window.onload = makeOnload(data);
-      });
-    }
-  );
-}
+      makeOnload(data)();
+    });
+  }
+);
 
 
