@@ -3,25 +3,22 @@
 global.document = window.document;
 global.navigator = window.navigator;
 
-var fs = require('fs');
-var path = require('path');
+import fs from 'fs';
+import gui from 'nw.gui';
 
-var _ = require('lodash');
-var Fluxxor = require('fluxxor');
-var React = require('react');
-var tinder = require('tinderjs');
+import _ from 'lodash';
+import Fluxxor from 'fluxxor';
+import tinder from 'tinderjs';
+const React = require('react');
 
-var FluxMixin = Fluxxor.FluxMixin(React);
-var StoreWatchMixin = Fluxxor.StoreWatchMixin;
+const FluxMixin = Fluxxor.FluxMixin(React);
+const StoreWatchMixin = Fluxxor.StoreWatchMixin;
 
-var client = new tinder.TinderClient();
-var secrets = require('./secrets.json');
+const CLIENT = new tinder.TinderClient();
+const LOCAL = true;
+const SECRETS = JSON.parse(fs.readFileSync('./secrets.json', 'utf8'));
 
-// var gui = require('nw.gui');
-// var win = gui.Window.get();
-// var nativeMenuBar = new gui.Menu({ type: "menubar" });
-// nativeMenuBar.createMacBuiltin("OptimalTinder");
-// win.menu = nativeMenuBar;
+
 
 /*
  * Flux components.
@@ -65,11 +62,16 @@ var actions = {
   loadHistory: function(history) {
     this.dispatch(constants.LOAD_HISTORY);
 
-    client.getHistory(function(error, data) {
-      if (error) throw error;
-      console.log('History received.');
-      this.dispatch(constants.LOAD_HISTORY_SUCCESS, {history: data});
-    }.bind(this));
+    if (LOCAL) {
+      const history = JSON.parse(fs.readFileSync('./history.json', 'utf8'));
+      this.dispatch(constants.LOAD_HISTORY_SUCCESS, {history});
+    } else {
+      CLIENT.getHistory((error, data) => {
+        if (error) throw error;
+        console.log('History received.');
+        this.dispatch(constants.LOAD_HISTORY_SUCCESS, {history: data});
+      });
+    }
   }
 };
 
@@ -148,17 +150,23 @@ var Application = React.createClass({
   }
 });
 
+
+// Add a nice menu bar with copy and paste.
+const nativeMenuBar = new gui.Menu({type: 'menubar'});
+nativeMenuBar.createMacBuiltin('OptimalTinder');
+const win = gui.Window.get();
+win.menu = nativeMenuBar;
+
+
 // Authorize the client and start the app.
 onload = function() {
-  client.authorize(
-    secrets.token,
-    secrets.facebook_id,
-    function() {
+  if (LOCAL) {
+    React.render(<Application flux={flux} />, document.getElementById('application'));
+  } else {
+    CLIENT.authorize(SECRETS.token, SECRETS.facebook_id, () => {
       console.log('Authorized');
-      React.render(
-        <Application flux={flux} />,
-        document.getElementById('application')
-      );
-    }
-  );
+      React.render(<Application flux={flux} />, document.getElementById('application'));
+    });
+  }
 };
+
