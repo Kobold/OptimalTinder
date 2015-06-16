@@ -6,80 +6,71 @@ global.navigator = window.navigator;
 import fs from 'fs';
 import gui from 'nw.gui';
 
-import _ from 'lodash';
-import Fluxxor from 'fluxxor';
-import tinder from 'tinderjs';
+const connectToStores = require('alt/utils/connectToStores');
 const React = require('react');
-
-const FluxMixin = Fluxxor.FluxMixin(React);
-const StoreWatchMixin = Fluxxor.StoreWatchMixin;
+import _ from 'lodash';
+import Alt from 'alt';
+import tinder from 'tinderjs';
 
 const CLIENT = new tinder.TinderClient();
 const LOCAL = true;
 const SECRETS = JSON.parse(fs.readFileSync('./secrets.json', 'utf8'));
 
 
-
 /*
  * Flux components.
  */
-var constants = {
-  LOAD_HISTORY: 'LOAD_HISTORY',
-  LOAD_HISTORY_SUCCESS: 'LOAD_HISTORY_SUCCESS'
-}
+const alt = new Alt();
 
-var MatchStore = Fluxxor.createStore({
-  initialize: function() {
-    this.loading = false;
-    this.matches = [];
-
-    this.bindActions(
-      constants.LOAD_HISTORY, this.onLoadHistory,
-      constants.LOAD_HISTORY_SUCCESS, this.onLoadHistorySuccess
-    );
-  },
-
-  onLoadHistory: function() {
-    this.loading = true;
-    this.emit('change');
-  },
-
-  onLoadHistorySuccess: function(payload) {
-    this.loading = false;
-    this.matches = payload.history.matches;
-    this.emit('change');
-  },
-
-  getState: function() {
-    return {
-      loading: this.loading,
-      matches: this.matches
-    };
-  }
-});
-
-var actions = {
-  loadHistory: function(history) {
-    this.dispatch(constants.LOAD_HISTORY);
+class TinderActionsClass {
+  loadHistory() {
+    this.actions.loadHistoryStart();
 
     if (LOCAL) {
       const history = JSON.parse(fs.readFileSync('./history.json', 'utf8'));
-      this.dispatch(constants.LOAD_HISTORY_SUCCESS, {history});
+      this.actions.loadHistorySuccess(history);
     } else {
-      CLIENT.getHistory((error, data) => {
+      CLIENT.getHistory((error, history) => {
         if (error) throw error;
         console.log('History received.');
-        this.dispatch(constants.LOAD_HISTORY_SUCCESS, {history: data});
+        this.actions.loadHistorySuccess(history);
       });
     }
   }
-};
 
-var stores = {
-  MatchStore: new MatchStore()
-};
+  loadHistoryStart() {
+    this.dispatch();
+  }
 
-var flux = new Fluxxor.Flux(stores, actions);
+  loadHistorySuccess(history) {
+    this.dispatch(history);
+  }
+}
+const TinderActions = alt.createActions(TinderActionsClass);
+
+
+class MatchStoreClass {
+  constructor() {
+    this.bindActions(TinderActions);
+
+    this.state = {
+      loading: false,
+      matches: [],
+    };
+  }
+
+  loadHistoryStart() {
+    this.setState({ loading: true });
+  }
+
+  loadHistorySuccess(history) {
+    this.setState({
+      loading: false,
+      matches: history.matches,
+    });
+  }
+}
+const MatchStore = alt.createStore(MatchStoreClass, 'MatchStore');
 
 
 /*
@@ -122,33 +113,37 @@ var MatchList = React.createClass({
   }
 });
 
-var Application = React.createClass({
-  mixins: [FluxMixin, StoreWatchMixin('MatchStore')],
-
-  getStateFromFlux: function() {
-    return this.getFlux().store('MatchStore').getState();
+const Application = connectToStores(React.createClass({
+  statics: {
+    getStores(props) {
+      return [MatchStore]
+    },
+    getPropsFromStores(props) {
+      return MatchStore.getState();
+    }
   },
 
-  render: function() {
-    var displayMatches = _(this.state.matches)
-      .filter(function(match) { return _.has(match, 'person'); })
-      .sortBy(function(match) { return match.person.ping_time; })
+  handleLoadHistory(e) {
+    e.preventDefault();
+    TinderActions.loadHistory();
+  },
+
+  render() {
+    const displayMatches = _(this.props.matches)
+      .filter(match => _.has(match, 'person'))
+      .sortBy(match => match.person.ping_time)
       .reverse()
       .take(60)
       .value();
+
     return (
       <div>
-        <a className="btn btn-primary" onClick={this.handleLoadHistory}>Load Matches</a>
+        <a className='btn btn-primary' onClick={this.handleLoadHistory}>Load Matches</a>
         <MatchList matches={displayMatches} />
       </div>
     );
   },
-
-  handleLoadHistory: function(e) {
-    e.preventDefault();
-    this.getFlux().actions.loadHistory();
-  }
-});
+}));
 
 
 // Add a nice menu bar with copy and paste.
@@ -161,11 +156,11 @@ win.menu = nativeMenuBar;
 // Authorize the client and start the app.
 onload = function() {
   if (LOCAL) {
-    React.render(<Application flux={flux} />, document.getElementById('application'));
+    React.render(<Application />, document.getElementById('application'));
   } else {
     CLIENT.authorize(SECRETS.token, SECRETS.facebook_id, () => {
       console.log('Authorized');
-      React.render(<Application flux={flux} />, document.getElementById('application'));
+      React.render(<Application />, document.getElementById('application'));
     });
   }
 };
