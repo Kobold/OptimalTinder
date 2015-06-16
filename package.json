@@ -16,6 +16,9 @@
     "tinderjs": "^1.0.8"
   },
   "scripts": {
-    "build": "jsx js/ build/"
+    "build": "babel js --out-dir build"
+  },
+  "devDependencies": {
+    "babel": "^5.5.8"
   }
 }
