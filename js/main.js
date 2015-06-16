@@ -1,3 +1,4 @@
+'use strict';
 // A fix for client-side components to work via require.
 global.document = window.document;
 global.navigator = window.navigator;
@@ -15,6 +16,12 @@ var StoreWatchMixin = Fluxxor.StoreWatchMixin;
 
 var client = new tinder.TinderClient();
 var secrets = require('./secrets.json');
+
+// var gui = require('nw.gui');
+// var win = gui.Window.get();
+// var nativeMenuBar = new gui.Menu({ type: "menubar" });
+// nativeMenuBar.createMacBuiltin("OptimalTinder");
+// win.menu = nativeMenuBar;
 
 /*
  * Flux components.
@@ -87,7 +94,7 @@ var Match = React.createClass({
 
     return (
       <div>
-        <p>{person.name} - {person.ping_time}</p>
+        <p><strong>{person.name}</strong> - {person.ping_time}</p>
         {person.photos.map(function(photo) {
           return <img src={photo.processedFiles[3].url} key={photo.id} />;
         })}
@@ -125,11 +132,11 @@ var Application = React.createClass({
       .filter(function(match) { return _.has(match, 'person'); })
       .sortBy(function(match) { return match.person.ping_time; })
       .reverse()
-      .take(40)
+      .take(60)
       .value();
     return (
       <div>
-        <a onClick={this.handleLoadHistory}>Load Matches</a>
+        <a className="btn btn-primary" onClick={this.handleLoadHistory}>Load Matches</a>
         <MatchList matches={displayMatches} />
       </div>
     );
