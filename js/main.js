@@ -3,52 +3,125 @@
 global.document = window.document;
 global.navigator = window.navigator;
 
-import fs from 'fs';
 import gui from 'nw.gui';
 
 const React = require('react');
 import _ from 'lodash';
 import Reflux from 'reflux';
+import request from 'superagent';
 import tinder from 'tinderjs';
 
-const CLIENT = new tinder.TinderClient();
-const LOCAL = true;
-const SECRETS = JSON.parse(fs.readFileSync('./secrets.json', 'utf8'));
+const LOGIN_URL = 'https://m.facebook.com/dialog/oauth?client_id=464891386855067&' +
+    'redirect_uri=https://www.facebook.com/connect/login_success.html&' +
+    'scope=user_birthday,user_relationship_details,user_likes,user_activities,' +
+    'user_education_history,user_photos,user_friends,user_about_me,email,' +
+    'public_profile&response_type=token';
+
+
+class ClientFetcher {
+  constructor() {
+      this.client = new tinder.TinderClient();
+  }
+
+  authorize(paramString, resolve, reject) {
+    const fbAuthData = _.zipObject(paramString.split('&')
+                                              .map(p => p.split('=')));
+    const fbUserId = this._getFBUserId(fbAuthData['access_token'], reject);
+
+    this.client.authorize(fbAuthData['access_token'], resolve, () => {
+      console.log('Authorized');
+      resolve(this.client);
+    });
+  }
+
+  _getFBUserId(token, reject) {
+    const graphUrl = 'https://graph.facebook.com/me?access_token=' + token;
+    request.get(graphUrl).end((err, res) => {
+      console.log('_getFBUserId');
+      if (res.ok) {
+        console.log('ok', res.body);
+        return res.body.id;
+      } else {
+        console.log('FUCK: _getFBUserId');
+        reject('Error: Could not get FB User ID: ' + res.text);
+      }
+    });
+  }
+
+  static fetch(resolve, reject) {
+    let loginPopup = gui.Window.open(LOGIN_URL, {
+      title: 'Login to Facebook',
+      position: 'center',
+      width: 400,
+      height: 480,
+      focus: true
+    });
+
+    const clientFetcher = new ClientFetcher();
+    const checkTokenInterval = setInterval(() => {
+      if (loginPopup) {
+        const loginPopupWindow = loginPopup.window;
+        if (loginPopupWindow.closed) {
+          clearInterval(checkTokenInterval);
+        } else {
+          const paramString = loginPopupWindow.document.URL.split('#')[1];
+          if (!!paramString) {
+            loginPopupWindow.close();
+            clearInterval(checkTokenInterval);
+
+
+            clientFetcher.authorize(paramString, resolve, reject);
+          }
+        }
+      }
+    }, 500);
+
+    loginPopup.on('closed', () => {
+      clearInterval(checkTokenInterval);
+      loginPopup = null;
+    });
+  }
+}
 
 
 /*
  * Flux components.
  */
-const TinderActions = Reflux.createActions([
-  'loadHistory',
-  'loadHistorySuccess',
-]);
+const TinderActions = Reflux.createActions({
+  'loadClient': {children: ['completed', 'failed']},
+  'loadHistory': {children: ['completed', 'failed']},
+});
 
 
 const MatchStore = Reflux.createStore({
   listenables: TinderActions,
   init() {
+    this.client = null;
     this.loading = false;
     this.matches = [];
   },
 
-  onLoadHistory(){
+  onLoadClient() {
+    ClientFetcher.fetch(TinderActions.loadClient.completed,
+                        TinderActions.loadClient.failed);
+  },
+
+  onLoadClientCompleted(client) {
+    this.client = client;
+  },
+
+  onLoadHistory() {
     this.loading = true;
     this.trigger(this.getState());
 
-    if (LOCAL) {
-      const history = JSON.parse(fs.readFileSync('./history.json', 'utf8'));
-      TinderActions.loadHistorySuccess(history);
-    } else {
-      CLIENT.getHistory((error, history) => {
-        if (error) throw error;
-        console.log('History received.');
-        TinderActions.loadHistorySuccess(history);
-      });
-    }
+    this.client.getHistory((error, history) => {
+      if (error) throw error;
+      console.log('History received.');
+      TinderActions.loadHistory.completed(history);
+    });
   },
 
-  onLoadHistorySuccess(history) {
+  onLoadHistoryCompleted(history) {
     this.loading = false;
     this.matches = history.matches;
     this.trigger(this.getState());
@@ -139,16 +212,9 @@ nativeMenuBar.createMacBuiltin('OptimalTinder');
 const win = gui.Window.get();
 win.menu = nativeMenuBar;
 
-
-// Authorize the client and start the app.
-onload = function() {
-  if (LOCAL) {
-    React.render(<Application />, document.getElementById('application'));
-  } else {
-    CLIENT.authorize(SECRETS.token, SECRETS.facebook_id, () => {
-      console.log('Authorized');
-      React.render(<Application />, document.getElementById('application'));
-    });
-  }
+// Start the app.
+onload = () => {
+  React.render(<Application />, document.getElementById('application'));
+  TinderActions.loadClient();
 };
 
