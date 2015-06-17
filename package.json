@@ -9,10 +9,10 @@
     "height": 800
   },
   "dependencies": {
-    "alt": "^0.16.10",
     "bootstrap": "^3.3.4",
     "lodash": "^3.9.3",
     "react": "^0.13.3",
+    "reflux": "^0.2.8",
     "tinderjs": "^1.0.8"
   },
   "scripts": {

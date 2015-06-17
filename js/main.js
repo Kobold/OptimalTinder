@@ -6,10 +6,9 @@ global.navigator = window.navigator;
 import fs from 'fs';
 import gui from 'nw.gui';
 
-const connectToStores = require('alt/utils/connectToStores');
 const React = require('react');
 import _ from 'lodash';
-import Alt from 'alt';
+import Reflux from 'reflux';
 import tinder from 'tinderjs';
 
 const CLIENT = new tinder.TinderClient();
@@ -20,57 +19,52 @@ const SECRETS = JSON.parse(fs.readFileSync('./secrets.json', 'utf8'));
 /*
  * Flux components.
  */
-const alt = new Alt();
+const TinderActions = Reflux.createActions([
+  'loadHistory',
+  'loadHistorySuccess',
+]);
 
-class TinderActionsClass {
-  loadHistory() {
-    this.actions.loadHistoryStart();
+
+const MatchStore = Reflux.createStore({
+  listenables: TinderActions,
+  init() {
+    this.loading = false;
+    this.matches = [];
+  },
+
+  onLoadHistory(){
+    this.loading = true;
+    this.trigger(this.getState());
 
     if (LOCAL) {
       const history = JSON.parse(fs.readFileSync('./history.json', 'utf8'));
-      this.actions.loadHistorySuccess(history);
+      TinderActions.loadHistorySuccess(history);
     } else {
       CLIENT.getHistory((error, history) => {
         if (error) throw error;
         console.log('History received.');
-        this.actions.loadHistorySuccess(history);
+        TinderActions.loadHistorySuccess(history);
       });
     }
-  }
+  },
 
-  loadHistoryStart() {
-    this.dispatch();
-  }
+  onLoadHistorySuccess(history) {
+    this.loading = false;
+    this.matches = history.matches;
+    this.trigger(this.getState());
+  },
 
-  loadHistorySuccess(history) {
-    this.dispatch(history);
-  }
-}
-const TinderActions = alt.createActions(TinderActionsClass);
-
-
-class MatchStoreClass {
-  constructor() {
-    this.bindActions(TinderActions);
-
-    this.state = {
-      loading: false,
-      matches: [],
+  getState() {
+    return {
+      loading: this.loading,
+      matches: this.matches,
     };
-  }
+  },
 
-  loadHistoryStart() {
-    this.setState({ loading: true });
-  }
-
-  loadHistorySuccess(history) {
-    this.setState({
-      loading: false,
-      matches: history.matches,
-    });
-  }
-}
-const MatchStore = alt.createStore(MatchStoreClass, 'MatchStore');
+  getInitialState() {
+    return this.getState();
+  },
+});
 
 
 /*
@@ -113,15 +107,8 @@ var MatchList = React.createClass({
   }
 });
 
-const Application = connectToStores(React.createClass({
-  statics: {
-    getStores(props) {
-      return [MatchStore]
-    },
-    getPropsFromStores(props) {
-      return MatchStore.getState();
-    }
-  },
+const Application = React.createClass({
+  mixins: [Reflux.connect(MatchStore)],
 
   handleLoadHistory(e) {
     e.preventDefault();
@@ -129,7 +116,7 @@ const Application = connectToStores(React.createClass({
   },
 
   render() {
-    const displayMatches = _(this.props.matches)
+    const displayMatches = _(this.state.matches)
       .filter(match => _.has(match, 'person'))
       .sortBy(match => match.person.ping_time)
       .reverse()
@@ -143,7 +130,7 @@ const Application = connectToStores(React.createClass({
       </div>
     );
   },
-}));
+});
 
 
 // Add a nice menu bar with copy and paste.
