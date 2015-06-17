@@ -9,6 +9,7 @@ import gui from 'nw.gui';
 const React = require('react');
 import _ from 'lodash';
 import classNames from 'classnames';
+import moment from 'moment';
 import Reflux from 'reflux';
 import request from 'superagent';
 import tinder from 'tinderjs';
@@ -19,6 +20,11 @@ const LOGIN_URL = 'https://m.facebook.com/dialog/oauth?client_id=464891386855067
     'scope=user_birthday,user_relationship_details,user_likes,user_activities,' +
     'user_education_history,user_photos,user_friends,user_about_me,email,' +
     'public_profile&response_type=token';
+
+
+function formatTimestamp(string) {
+  return moment(string).format('MMMM Do YYYY, h:mm a');
+}
 
 
 class ClientFetcher {
@@ -203,14 +209,16 @@ var Match = React.createClass({
         <div className='match-heading'>
           <strong>{person.name}</strong>
           {' '}
-          <span className='match-seen'>seen {person.ping_time}</span>
+          <span className='match-seen'>seen {formatTimestamp(person.ping_time)}</span>
         </div>
-        {person.photos.map(function(photo) {
-          return <img src={photo.processedFiles[3].url} key={photo.id} />;
-        })}
-        {messages.map(function(message) {
-          return <p key={message._id}>{message.sent_date} {message.message}</p>;
-        })}
+        {person.photos.map((photo) =>
+          <img src={photo.processedFiles[3].url} key={photo.id} />
+        )}
+        {messages.map((message) =>
+          <p key={message._id}>
+            <em>{formatTimestamp(message.sent_date)}</em> {message.message}
+          </p>
+        )}
       </div>
     );
   }
