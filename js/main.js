@@ -3,6 +3,7 @@
 global.document = window.document;
 global.navigator = window.navigator;
 
+import fs from 'fs';
 import gui from 'nw.gui';
 
 const React = require('react');
@@ -11,6 +12,7 @@ import Reflux from 'reflux';
 import request from 'superagent';
 import tinder from 'tinderjs';
 
+const LOCAL = true;
 const LOGIN_URL = 'https://m.facebook.com/dialog/oauth?client_id=464891386855067&' +
     'redirect_uri=https://www.facebook.com/connect/login_success.html&' +
     'scope=user_birthday,user_relationship_details,user_likes,user_activities,' +
@@ -93,8 +95,7 @@ const TinderActions = Reflux.createActions({
 });
 
 
-const MatchStore = Reflux.createStore({
-  listenables: TinderActions,
+const LiveMatchStore = Reflux.createStore({
   init() {
     this.client = null;
     this.loading = false;
@@ -138,6 +139,42 @@ const MatchStore = Reflux.createStore({
     return this.getState();
   },
 });
+
+
+const LocalMatchStore = Reflux.createStore({
+  init() {
+    this.loading = false;
+    this.matches = [];
+  },
+
+  onLoadHistory() {
+    this.loading = true;
+    this.trigger(this.getState());
+
+    const history = JSON.parse(fs.readFileSync('./history.json', 'utf8'));
+    TinderActions.loadHistory.completed(history);
+  },
+
+  onLoadHistoryCompleted(history) {
+    this.loading = false;
+    this.matches = history.matches;
+    this.trigger(this.getState());
+  },
+
+  getState() {
+    return {
+      loading: this.loading,
+      matches: this.matches,
+    };
+  },
+
+  getInitialState() {
+    return this.getState();
+  },
+});
+
+
+const MatchStore = LOCAL ? LocalMatchStore : LiveMatchStore;
 
 
 /*
@@ -212,8 +249,10 @@ nativeMenuBar.createMacBuiltin('OptimalTinder');
 const win = gui.Window.get();
 win.menu = nativeMenuBar;
 
+
 // Start the app.
 onload = () => {
+  MatchStore.listenToMany(TinderActions);
   React.render(<Application />, document.getElementById('application'));
   TinderActions.loadClient();
 };
