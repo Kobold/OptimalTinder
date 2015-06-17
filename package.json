@@ -17,7 +17,9 @@
     "tinderjs": "^1.0.8"
   },
   "scripts": {
-    "build": "babel js --out-dir build"
+    "build": "npm run build-js && npm run build-less",
+    "build-js": "babel js --out-dir build",
+    "build-less": "lessc less/main.less build/main.css"
   },
   "devDependencies": {
     "babel": "^5.5.8"

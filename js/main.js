@@ -183,6 +183,7 @@ const LocalMatchStore = Reflux.createStore({
 
 
 const MatchStore = LOCAL ? LocalMatchStore : LiveMatchStore;
+MatchStore.listenToMany(TinderActions);
 
 
 /*
@@ -266,9 +267,6 @@ win.menu = nativeMenuBar;
 
 
 // Start the app.
-onload = () => {
-  MatchStore.listenToMany(TinderActions);
-  React.render(<Application />, document.getElementById('application'));
-  TinderActions.loadClient();
-};
+React.render(<Application />, document.getElementById('application'));
+TinderActions.loadClient();
 
