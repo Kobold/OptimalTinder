@@ -150,7 +150,7 @@ const LocalMatchStore = Reflux.createStore({
   },
 
   onLoadClient() {
-    window.setTimeout(TinderActions.loadHistory, 2500);
+    window.setTimeout(TinderActions.loadHistory, 10);
   },
 
   onLoadHistory() {
@@ -160,7 +160,7 @@ const LocalMatchStore = Reflux.createStore({
     const history = JSON.parse(fs.readFileSync('./history.json', 'utf8'));
     window.setTimeout(() => {
       TinderActions.loadHistory.completed(history);
-    }, 2500);
+    }, 10);
   },
 
   onLoadHistoryCompleted(history) {
@@ -199,8 +199,12 @@ var Match = React.createClass({
     var person = this.props.match.person;
 
     return (
-      <div>
-        <p><strong>{person.name}</strong> - {person.ping_time}</p>
+      <div className='match'>
+        <div className='match-heading'>
+          <strong>{person.name}</strong>
+          {' '}
+          <span className='match-seen'>seen {person.ping_time}</span>
+        </div>
         {person.photos.map(function(photo) {
           return <img src={photo.processedFiles[3].url} key={photo.id} />;
         })}
@@ -237,7 +241,7 @@ const Application = React.createClass({
   },
 
   render() {
-    const buttonClasses = ['btn', 'btn-primary', {'disabled': this.state.loading}];
+    const buttonClasses = ['btn', 'btn-primary', 'btn-sm', {'disabled': this.state.loading}];
     const displayMatches = _(this.state.matches)
       .filter(match => _.has(match, 'person'))
       .sortBy(match => match.person.ping_time)
@@ -247,11 +251,13 @@ const Application = React.createClass({
 
     return (
       <div>
-        <a className={classNames(buttonClasses)} onClick={this.handleLoadHistory}>
-          Load Matches
-          {' '}
-          {this.state.loading ? <i className='fa fa-spinner fa-spin' /> : null}
-        </a>
+        <div className='menubar'>
+          <a className={classNames(buttonClasses)} onClick={this.handleLoadHistory}>
+            Load Matches
+            {' '}
+            {this.state.loading ? <i className='fa fa-spinner fa-spin' /> : null}
+          </a>
+        </div>
         <MatchList matches={displayMatches} />
       </div>
     );
