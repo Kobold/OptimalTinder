@@ -8,6 +8,7 @@ import gui from 'nw.gui';
 
 const React = require('react');
 import _ from 'lodash';
+import classNames from 'classnames';
 import Reflux from 'reflux';
 import request from 'superagent';
 import tinder from 'tinderjs';
@@ -109,6 +110,7 @@ const LiveMatchStore = Reflux.createStore({
 
   onLoadClientCompleted(client) {
     this.client = client;
+    window.setTimeout(TinderActions.loadHistory, 2500);
   },
 
   onLoadHistory() {
@@ -147,12 +149,18 @@ const LocalMatchStore = Reflux.createStore({
     this.matches = [];
   },
 
+  onLoadClient() {
+    window.setTimeout(TinderActions.loadHistory, 2500);
+  },
+
   onLoadHistory() {
     this.loading = true;
     this.trigger(this.getState());
 
     const history = JSON.parse(fs.readFileSync('./history.json', 'utf8'));
-    TinderActions.loadHistory.completed(history);
+    window.setTimeout(() => {
+      TinderActions.loadHistory.completed(history);
+    }, 2500);
   },
 
   onLoadHistoryCompleted(history) {
@@ -222,10 +230,13 @@ const Application = React.createClass({
 
   handleLoadHistory(e) {
     e.preventDefault();
-    TinderActions.loadHistory();
+    if (!this.state.loading) {
+      TinderActions.loadHistory();
+    }
   },
 
   render() {
+    const buttonClasses = ['btn', 'btn-primary', {'disabled': this.state.loading}];
     const displayMatches = _(this.state.matches)
       .filter(match => _.has(match, 'person'))
       .sortBy(match => match.person.ping_time)
@@ -235,7 +246,11 @@ const Application = React.createClass({
 
     return (
       <div>
-        <a className='btn btn-primary' onClick={this.handleLoadHistory}>Load Matches</a>
+        <a className={classNames(buttonClasses)} onClick={this.handleLoadHistory}>
+          Load Matches
+          {' '}
+          {this.state.loading ? <i className='fa fa-spinner fa-spin' /> : null}
+        </a>
         <MatchList matches={displayMatches} />
       </div>
     );

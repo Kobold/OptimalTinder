@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "bootstrap": "^3.3.4",
+    "classnames": "^2.1.2",
     "lodash": "^3.9.3",
     "react": "^0.13.3",
     "reflux": "^0.2.8",
