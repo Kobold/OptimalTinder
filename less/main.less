@@ -1,8 +1,18 @@
 @import "../bower_components/bootstrap/less/bootstrap.less";
 
+.distance {
+  .pull-right();
+  .small();
+  color: @gray;
+  line-height: @line-height-computed;
+}
+.distance-unknown:extend(.distance) {
+  color: @gray-lighter;
+}
+
 .match {
   border-bottom: 1px solid @gray-lighter;
-  padding: @padding-base-vertical @padding-base-horizontal (2 * @padding-large-vertical);
+  padding: @padding-large-vertical 50px (2 * @padding-large-vertical);
 
   > .match-heading {
     margin-bottom: @padding-small-vertical;

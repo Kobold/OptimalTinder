@@ -14,7 +14,7 @@ import Reflux from 'reflux';
 import request from 'superagent';
 import tinder from 'tinderjs';
 
-const LOCAL = true;
+const LOCAL = false;
 const LOGIN_URL = 'https://m.facebook.com/dialog/oauth?client_id=464891386855067&' +
     'redirect_uri=https://www.facebook.com/connect/login_success.html&' +
     'scope=user_birthday,user_relationship_details,user_likes,user_activities,' +
@@ -29,7 +29,7 @@ function formatTimestamp(string) {
 
 class ClientFetcher {
   constructor() {
-      this.client = new tinder.TinderClient();
+    this.client = new tinder.TinderClient();
   }
 
   authorize(paramString, resolve, reject) {
@@ -78,7 +78,6 @@ class ClientFetcher {
             loginPopupWindow.close();
             clearInterval(checkTokenInterval);
 
-
             clientFetcher.authorize(paramString, resolve, reject);
           }
         }
@@ -99,13 +98,26 @@ class ClientFetcher {
 const TinderActions = Reflux.createActions({
   'loadClient': {children: ['completed', 'failed']},
   'loadHistory': {children: ['completed', 'failed']},
+  'loadDistance': {},
 });
+
+
+function loadMatchDistancesAsync([match, ...rest]) {
+  window.setTimeout(() => {
+    console.log(`loading ${match.person._id}`);
+    TinderActions.loadDistance(match.person._id);
+    if (!_.isEmpty(rest)) {
+      loadMatchDistancesAsync(rest);
+    }
+  }, 500);
+}
 
 
 const LiveMatchStore = Reflux.createStore({
   init() {
     this.client = null;
     this.loading = false;
+    this.matchDistances = {};
     this.matches = [];
   },
 
@@ -134,11 +146,28 @@ const LiveMatchStore = Reflux.createStore({
     this.loading = false;
     this.matches = history.matches;
     this.trigger(this.getState());
+
+    const displayMatches = _(this.matches)
+      .filter(match => _.has(match, 'person'))
+      .sortBy(match => match.person.ping_time)
+      .reverse()
+      .take(60)
+      .value();
+    loadMatchDistancesAsync(displayMatches);
+  },
+
+  onLoadDistance(personId) {
+    this.client.getUser(personId, (error, data) => {
+      if (error) throw error;
+      this.matchDistances[personId] = data.results.distance_mi;
+      this.trigger(this.getState());
+    });
   },
 
   getState() {
     return {
       loading: this.loading,
+      matchDistances: this.matchDistances,
       matches: this.matches,
     };
   },
@@ -152,6 +181,7 @@ const LiveMatchStore = Reflux.createStore({
 const LocalMatchStore = Reflux.createStore({
   init() {
     this.loading = false;
+    this.matchDistances = {};
     this.matches = [];
   },
 
@@ -173,11 +203,26 @@ const LocalMatchStore = Reflux.createStore({
     this.loading = false;
     this.matches = history.matches;
     this.trigger(this.getState());
+
+    const displayMatches = _(this.matches)
+      .filter(match => _.has(match, 'person'))
+      .sortBy(match => match.person.ping_time)
+      .reverse()
+      .take(60)
+      .value();
+    loadMatchDistancesAsync(displayMatches);
+  },
+
+  onLoadDistance(personId) {
+    const min = 1, max = 20;
+    this.matchDistances[personId] = Math.floor(Math.random() * (max - min)) + min;
+    this.trigger(this.getState());
   },
 
   getState() {
     return {
       loading: this.loading,
+      matchDistances: this.matchDistances,
       matches: this.matches,
     };
   },
@@ -195,21 +240,51 @@ MatchStore.listenToMany(TinderActions);
 /*
  * React components.
  */
-var Match = React.createClass({
+const Distance = React.createClass({
   propTypes: {
-    match: React.PropTypes.object.isRequired
+    distance: React.PropTypes.number,
   },
 
   render: function() {
-    var messages = this.props.match.messages;
-    var person = this.props.match.person;
+    if (_.isNull(this.props.distance)) {
+      return (
+        <span className='distance-unknown'>
+          - Miles Away
+        </span>
+      );
+    } else {
+      return (
+        <span className='distance'>
+          {this.props.distance.toLocaleString()} Miles Away
+        </span>
+      );
+    }
+  }
+});
+
+
+var Match = React.createClass({
+  propTypes: {
+    distance: React.PropTypes.number,
+    match: React.PropTypes.object.isRequired,
+  },
+
+  render: function() {
+    const messages = this.props.match.messages;
+    const person = this.props.match.person;
+
+    const style = {};
+    if (!_.isNull(this.props.distance) && this.props.distance < 50) {
+      style.backgroundColor = '#bdecb6';
+    }
 
     return (
-      <div className='match'>
+      <div className='match' style={style}>
         <div className='match-heading'>
           <strong>{person.name}</strong>
           {' '}
           <span className='match-seen'>seen {formatTimestamp(person.ping_time)}</span>
+          <Distance distance={this.props.distance} />
         </div>
         {person.photos.map((photo) =>
           <img src={photo.processedFiles[3].url} key={photo.id} />
@@ -226,15 +301,19 @@ var Match = React.createClass({
 
 var MatchList = React.createClass({
   propTypes: {
-    matches: React.PropTypes.array.isRequired
+    matchDistances: React.PropTypes.object.isRequired,
+    matches: React.PropTypes.array.isRequired,
   },
 
   render: function() {
-    var matchNodes = this.props.matches
-      .map(function(match) {
-        return <Match match={match} key={match._id} />
-      });
-    return <div>{matchNodes}</div>;
+    return (
+      <div>
+        {this.props.matches.map((match) => {
+          const distance = _.get(this.props.matchDistances, match.person._id, null);
+          return <Match key={match._id} match={match} distance={distance} />;
+        })}
+      </div>
+    );
   }
 });
 
@@ -266,7 +345,7 @@ const Application = React.createClass({
             {this.state.loading ? <i className='fa fa-spinner fa-spin' /> : null}
           </a>
         </div>
-        <MatchList matches={displayMatches} />
+        <MatchList matches={displayMatches} matchDistances={this.state.matchDistances} />
       </div>
     );
   },
