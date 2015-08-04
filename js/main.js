@@ -281,13 +281,16 @@ var Match = React.createClass({
     return (
       <div className='match' style={style}>
         <div className='match-heading'>
-          <strong>{person.name}</strong>
+          <h4>{person.name}</h4>
           {' '}
           <span className='match-seen'>seen {formatTimestamp(person.ping_time)}</span>
           <Distance distance={this.props.distance} />
         </div>
         {person.photos.map((photo) =>
-          <img src={photo.processedFiles[3].url} key={photo.id} />
+          <img key={photo.id}
+               className='match-image'
+               src={photo.processedFiles[3].url}
+               srcSet={`${photo.processedFiles[3].url} 1x, ${photo.processedFiles[2].url} 2x`} />
         )}
         {messages.map((message) =>
           <p key={message._id}>
