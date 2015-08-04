@@ -214,7 +214,7 @@ const LocalMatchStore = Reflux.createStore({
   },
 
   onLoadDistance(personId) {
-    const min = 1, max = 20;
+    const min = 1, max = 200;
     this.matchDistances[personId] = Math.floor(Math.random() * (max - min)) + min;
     this.trigger(this.getState());
   },
