@@ -11,7 +11,6 @@ import _ from 'lodash';
 import classNames from 'classnames';
 import moment from 'moment';
 import Reflux from 'reflux';
-import request from 'superagent';
 import tinder from 'tinderjs';
 
 const LOCAL = false;
@@ -35,26 +34,10 @@ class ClientFetcher {
   authorize(paramString, resolve, reject) {
     const fbAuthData = _.zipObject(paramString.split('&')
                                               .map(p => p.split('=')));
-    const fbUserId = this._getFBUserId(fbAuthData['access_token'], reject);
 
-    console.log('fart');
-    this.client.authorize(fbAuthData['access_token'], resolve, () => {
+    this.client.authorize(fbAuthData['access_token'], undefined, () => {
       console.log('Authorized');
       resolve(this.client);
-    });
-  }
-
-  _getFBUserId(token, reject) {
-    const graphUrl = 'https://graph.facebook.com/me?access_token=' + token;
-    request.get(graphUrl).end((err, res) => {
-      console.log('_getFBUserId');
-      if (res.ok) {
-        console.log('ok', res.body);
-        return res.body.id;
-      } else {
-        console.log('FUCK: _getFBUserId');
-        reject('Error: Could not get FB User ID: ' + res.text);
-      }
     });
   }
 

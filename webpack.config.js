@@ -12,15 +12,6 @@ module.exports = {
   devtool: "source-map",
   target: 'node-webkit',
 
-  // Superagent sucks.
-  // https://github.com/visionmedia/superagent/wiki/Superagent-for-Webpack
-  plugins: [
-    new webpack.DefinePlugin({ 'global.GENTLY': false })
-  ],
-  node: {
-    __dirname: true,
-  },
-
   module: {
     loaders: [
       { test: /\.json$/, loader: 'json' },

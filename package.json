@@ -15,7 +15,6 @@
     "moment": "^2.10.3",
     "react": "^0.13.3",
     "reflux": "^0.2.8",
-    "superagent": "^1.2.0",
     "tinderjs": "^1.0.8"
   },
   "scripts": {
