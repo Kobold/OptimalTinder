@@ -13,6 +13,8 @@ import moment from 'moment';
 import Reflux from 'reflux';
 import tinder from 'tinderjs';
 
+import MatchImage from './components/MatchImage';
+
 const LOCAL = false;
 const LOGIN_URL = 'https://m.facebook.com/dialog/oauth?client_id=464891386855067&' +
     'redirect_uri=https://www.facebook.com/connect/login_success.html&' +
@@ -271,10 +273,7 @@ var Match = React.createClass({
           <Distance distance={this.props.distance} />
         </div>
         {person.photos.map((photo) =>
-          <img key={photo.id}
-               className='match-image'
-               src={photo.processedFiles[3].url}
-               srcSet={`${photo.processedFiles[3].url} 1x, ${photo.processedFiles[2].url} 2x`} />
+          <MatchImage key={photo.id} photo={photo} />
         )}
         {messages.map((message) =>
           <p key={message._id}>
