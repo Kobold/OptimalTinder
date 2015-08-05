@@ -37,6 +37,7 @@ class ClientFetcher {
                                               .map(p => p.split('=')));
     const fbUserId = this._getFBUserId(fbAuthData['access_token'], reject);
 
+    console.log('fart');
     this.client.authorize(fbAuthData['access_token'], resolve, () => {
       console.log('Authorized');
       resolve(this.client);
